@@ -3,4 +3,6 @@
 *.out
 *.csv
 mandelbrot
+pth_ll_rwl
+pth_ll_my_rwl
 pi

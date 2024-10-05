@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "my_rand.h"
+#include "rwlock_writers_prioretize.h"
 #include "timer.h"
 
 /* Random ints are less than MAX_KEY */
@@ -20,7 +21,7 @@ int total_ops;
 double insert_percent;
 double search_percent;
 double delete_percent;
-pthread_rwlock_t rwlock;
+rwlock_t rwlock;
 pthread_mutex_t count_mutex;
 int member_count = 0, insert_count = 0, delete_count = 0;
 
@@ -74,7 +75,7 @@ int main(int argc, char* argv[]) {
 
     thread_handles = malloc(thread_count * sizeof(pthread_t));
     pthread_mutex_init(&count_mutex, NULL);
-    pthread_rwlock_init(&rwlock, NULL);
+    rwlock_init(&rwlock);
 
     GET_TIME(start);
     for (i = 0; i < thread_count; i++)
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
 #endif
 
     Free_list();
-    pthread_rwlock_destroy(&rwlock);
+    rwlock_destroy(&rwlock);
     pthread_mutex_destroy(&count_mutex);
     free(thread_handles);
 
@@ -265,19 +266,19 @@ void* Thread_work(void* rank) {
         which_op = my_drand(&seed);
         val = my_rand(&seed) % MAX_KEY;
         if (which_op < search_percent) {
-            pthread_rwlock_rdlock(&rwlock);
+            rwlock_rdlock(&rwlock);
             Member(val);
-            pthread_rwlock_unlock(&rwlock);
+            rwlock_unlock(&rwlock);
             my_member_count++;
         } else if (which_op < search_percent + insert_percent) {
-            pthread_rwlock_wrlock(&rwlock);
+            rwlock_wrlock(&rwlock);
             Insert(val);
-            pthread_rwlock_unlock(&rwlock);
+            rwlock_unlock(&rwlock);
             my_insert_count++;
         } else { /* delete */
-            pthread_rwlock_wrlock(&rwlock);
+            rwlock_wrlock(&rwlock);
             Delete(val);
-            pthread_rwlock_unlock(&rwlock);
+            rwlock_unlock(&rwlock);
             my_delete_count++;
         }
     } /* for */
