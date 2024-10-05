@@ -17,12 +17,6 @@ struct thread_args {
 struct complex {
     double real;
     double img;
-    double end_real;
-    double end_img;
-    double square;
-    double ro;
-    double ro_c;
-    int iterations;
 } typedef COMPLEX;
 
 COMPLEX* global_points_buf;
@@ -54,25 +48,22 @@ void* mandelbrot(void* arg) {
                                      (img_max - img_min);
         double real_part = 0;
         double img_part = 0;
+
         if (check_main_cardiod(c_real, c_img)) {
             int index = my_args->start + i;
             COMPLEX* c = &global_points_buf[index];
             c->real = c_real;
             c->img = c_img;
-            c->end_real = 0;
-            c->end_img = 0;
-            c->square = 0;
-            c->ro = ro(c_real, c_img);
-            c->ro_c = ro_c(c_real, c_img);
-            c->iterations = ro_c(c_real, c_img);
             ++i;
+            continue;
         }
-        long j;
-        for (j = 0; j < iterations_to_include; ++j) {
-            real_part = real_part * real_part - img_part * img_part + c_real;
-            img_part = 2 * real_part * img_part + c_img;
+        for (long j = 0; j < iterations_to_include; ++j) {
+            double r = real_part * real_part - img_part * img_part + c_real;
+            double i = 2 * real_part * img_part + c_img;
+            real_part = r;
+            img_part = i;
 
-            if (real_part * real_part + img_part * img_part > 4) {
+            if (pow(real_part, 2) + pow(img_part, 2) >= 4) {
                 break;
             }
         }
@@ -82,17 +73,10 @@ void* mandelbrot(void* arg) {
             COMPLEX* c = &global_points_buf[index];
             c->real = c_real;
             c->img = c_img;
-            c->end_real = real_part;
-            c->end_img = img_part;
-            c->square = real_part * real_part + img_part * img_part;
-            c->ro = ro(c_real, c_img);
-            c->ro_c = ro_c(c_real, c_img);
-            c->iterations = j;
             ++i;
         }
     }
     free(my_args);
-    return NULL;
 }
 
 ARGS* new_args(int start, int end) {
@@ -124,6 +108,7 @@ void join_threads(pthread_t* threads, int nthreads) {
     for (long i = 0; i < nthreads; i++) {
         pthread_join(threads[i], NULL);
     }
+    free(threads);
 }
 
 int main(int argc, char* argv[]) {
@@ -142,11 +127,10 @@ int main(int argc, char* argv[]) {
     pthread_t* threads = create_threads(nthreads, npoints);
     join_threads(threads, nthreads);
 
-    printf("real, img, real_end, img_end, square, ro, ro_c, iteartions\n");
+    printf("real, img\n");
     for (int i = 0; i < npoints; ++i) {
         COMPLEX c = global_points_buf[i];
-        printf("%.5f, %.5f, %.5f, %.5f, %.5f, %.5f, %.5d\n", c.real, c.img,
-               c.end_real, c.end_img, c.ro, c.ro_c, c.iterations);
+        printf("%.10f, %.10f\n", c.real, c.img);
     }
 
     free(global_points_buf);
