@@ -4,8 +4,14 @@
 #include <stdlib.h>
 #include "timer.h"
 
+#define fpow(x) (x) * (x)
+#define square_norm(x, y) fpow(x) + fpow(y)
+#define random_double(a, b) a + rand_r(&rand_state) / ((double)RAND_MAX) * (b - a);
+#define write_to_buf_next() COMPLEX* c = &global_points_buf[index]; c->real = c_real; c->img = c_img; ++i;
+
 long nthreads;
 long npoints;
+
 const int iterations_to_include = 1500;
 const double real_min = -2.;
 const double real_max = 1.;
@@ -25,15 +31,14 @@ struct complex {
 COMPLEX* global_points_buf;
 
 double ro(double x, double y) {
-    return sqrt(pow(x - 1. / 4., 2) + pow(y, 2));
+    return sqrt(fpow(x - 1. / 4.) + fpow(y));
 }
 
 double ro_c(double x, double y) {
-    double teta = atan2(y, x - 1. / 4.);
-    return 1. / 2. - 1. / 2. * cos(teta);
+    double theta = atan2(y, x - 1. / 4.);
+    return 1. / 2. - 1. / 2. * cos(theta);
 }
 
-// https://ru.wikipedia.org/wiki/%D0%9C%D0%BD%D0%BE%D0%B6%D0%B5%D1%81%D1%82%D0%B2%D0%BE_%D0%9C%D0%B0%D0%BD%D0%B4%D0%B5%D0%BB%D1%8C%D0%B1%D1%80%D0%BE%D1%82%D0%B0#%D0%9E%D0%BF%D1%82%D0%B8%D0%BC%D0%B8%D0%B7%D0%B0%D1%86%D0%B8%D1%8F
 int check_main_cardiod(double x, double y) {
     double r = ro(x, y);
     double r_c = ro_c(x, y);
@@ -43,40 +48,40 @@ int check_main_cardiod(double x, double y) {
 void* mandelbrot(void* arg) {
     ARGS* my_args = (ARGS*)arg;
     long points = my_args->end - my_args->start;
+
     unsigned int rand_state = rand();
+
     for (long i = 0; i < points;) {
-        double c_real = real_min + rand_r(&rand_state) / ((double)RAND_MAX) *
-                                       (real_max - real_min);
-        double c_img = img_min + rand_r(&rand_state) / ((double)RAND_MAX) *
-                                     (img_max - img_min);
-        double real_part = 0;
-        double img_part = 0;
+        // rand() is actually not thread-safe
+        double c_real = random_double(real_min, real_max);
+        double c_img = random_double(img_min, img_max);
+        double zn_real = 0;
+        double zn_img = 0;
+
+        int index = my_args->start + i;
 
         if (check_main_cardiod(c_real, c_img)) {
-            int index = my_args->start + i;
-            COMPLEX* c = &global_points_buf[index];
-            c->real = c_real;
-            c->img = c_img;
-            ++i;
+            write_to_buf_next()
             continue;
         }
-        for (long j = 0; j < iterations_to_include; ++j) {
-            double r = real_part * real_part - img_part * img_part + c_real;
-            double i = 2 * real_part * img_part + c_img;
-            real_part = r;
-            img_part = i;
 
-            if (pow(real_part, 2) + pow(img_part, 2) >= 4) {
+        // temporary variables
+        double t_r;
+        double t_i;
+        for (long j = 0; j < iterations_to_include; ++j) {
+            t_r = zn_real * zn_real - zn_img * zn_img + c_real;
+            t_i = 2 * zn_real * zn_img + c_img;
+            zn_real = t_r;
+            zn_img = t_i;
+
+            // calculating x * x is faster than pow(x, 2)
+            if (square_norm(zn_real, zn_img) >= 4) {
                 break;
             }
         }
 
-        if (real_part * real_part + img_part * img_part < 4) {
-            int index = my_args->start + i;
-            COMPLEX* c = &global_points_buf[index];
-            c->real = c_real;
-            c->img = c_img;
-            ++i;
+        if (square_norm(zn_real, zn_img) < 4) {
+            write_to_buf_next()
         }
     }
     free(my_args);
@@ -95,9 +100,9 @@ pthread_t* create_threads() {
     pthread_t* threads = malloc(nthreads * sizeof(pthread_t));
     pthread_attr_t attr;
     pthread_attr_init(&attr);
+
     for (long i = 0; i < nthreads - 1; i++) {
-        ARGS* args =
-            new_args(i * points_per_thread, (i + 1) * points_per_thread);
+        ARGS* args = new_args(i * points_per_thread, (i + 1) * points_per_thread);
         pthread_create(&threads[i], &attr, mandelbrot, args);
     }
 
@@ -114,6 +119,22 @@ void join_threads(pthread_t* threads) {
     free(threads);
 }
 
+int check_input(int argc, char* argv[]) {
+    if (argc != 3) 
+    {
+        printf("Использование: %s <количество потоков> <количество попыток>\n",
+               argv[0]);
+        return 1;
+    }
+    if (argv[1] <= 0 || argv[2] <= 0) 
+    {
+        printf("Ошибка: количество потоков и попыток должно быть положительным!\n");
+        return 1;
+    }
+
+    return 0;
+}
+
 void write_to_csv(char* filename) {
     FILE* csv;
     csv = fopen(filename, "w");
@@ -126,26 +147,28 @@ void write_to_csv(char* filename) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        printf("Использование: %s <количество потоков> <количество попыток>\n",
-               argv[0]);
+    if(check_input(argc, argv)) {
         return 1;
     }
 
     srand(time(NULL));
+
     nthreads = atoi(argv[1]);
     npoints = atoi(argv[2]);
 
     global_points_buf = malloc(npoints * sizeof(COMPLEX));
+
     double start, end;
+
     GET_TIME(start);
     pthread_t* threads = create_threads();
     join_threads(threads);
-
     GET_TIME(end);
+
     printf("%.5f\n", end - start);
     write_to_csv("mandelbrot.csv");
 
     free(global_points_buf);
+
     return 0;
 }
