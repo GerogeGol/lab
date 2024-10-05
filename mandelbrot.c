@@ -2,7 +2,10 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "timer.h"
 
+long nthreads;
+long npoints;
 const int iterations_to_include = 1500;
 const double real_min = -2.;
 const double real_max = 1.;
@@ -86,7 +89,7 @@ ARGS* new_args(int start, int end) {
     return args;
 }
 
-pthread_t* create_threads(long nthreads, long npoints) {
+pthread_t* create_threads() {
     long points_per_thread = npoints / nthreads;
 
     pthread_t* threads = malloc(nthreads * sizeof(pthread_t));
@@ -104,11 +107,22 @@ pthread_t* create_threads(long nthreads, long npoints) {
     return threads;
 }
 
-void join_threads(pthread_t* threads, int nthreads) {
+void join_threads(pthread_t* threads) {
     for (long i = 0; i < nthreads; i++) {
         pthread_join(threads[i], NULL);
     }
     free(threads);
+}
+
+void write_to_csv(char* filename) {
+    FILE* csv;
+    csv = fopen(filename, "w");
+    fprintf(csv, "real,img\n");
+    for (int i = 0; i < npoints; ++i) {
+        COMPLEX c = global_points_buf[i];
+        fprintf(csv, "%.10f,%.10f\n", c.real, c.img);
+    }
+    fclose(csv);
 }
 
 int main(int argc, char* argv[]) {
@@ -119,19 +133,18 @@ int main(int argc, char* argv[]) {
     }
 
     srand(time(NULL));
-    long nthreads = atoi(argv[1]);
-    long npoints = atoi(argv[2]);
+    nthreads = atoi(argv[1]);
+    npoints = atoi(argv[2]);
 
     global_points_buf = malloc(npoints * sizeof(COMPLEX));
+    double start, end;
+    GET_TIME(start);
+    pthread_t* threads = create_threads();
+    join_threads(threads);
 
-    pthread_t* threads = create_threads(nthreads, npoints);
-    join_threads(threads, nthreads);
-
-    printf("real, img\n");
-    for (int i = 0; i < npoints; ++i) {
-        COMPLEX c = global_points_buf[i];
-        printf("%.10f, %.10f\n", c.real, c.img);
-    }
+    GET_TIME(end);
+    printf("%.5f\n", end - start);
+    write_to_csv("mandelbrot.csv");
 
     free(global_points_buf);
     return 0;
