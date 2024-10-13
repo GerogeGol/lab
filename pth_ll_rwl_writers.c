@@ -65,7 +65,6 @@ int main(int argc, char* argv[]) {
         if (success)
             i++;
     }
-    printf("Inserted %ld keys in empty list\n", i);
 
 #ifdef OUTPUT
     printf("Before starting threads, list = \n");
@@ -84,11 +83,7 @@ int main(int argc, char* argv[]) {
     for (i = 0; i < thread_count; i++)
         pthread_join(thread_handles[i], NULL);
     GET_TIME(finish);
-    printf("Elapsed time = %e seconds\n", finish - start);
-    printf("Total ops = %d\n", total_ops);
-    printf("member ops = %d\n", member_count);
-    printf("insert ops = %d\n", insert_count);
-    printf("delete ops = %d\n", delete_count);
+    printf("%f\n", finish - start);
 
 #ifdef OUTPUT
     printf("After threads terminate, list = \n");
@@ -112,13 +107,9 @@ void Usage(char* prog_name) {
 
 /*-----------------------------------------------------------------*/
 void Get_input(int* inserts_in_main_p) {
-    printf("How many keys should be inserted in the main thread?\n");
     scanf("%d", inserts_in_main_p);
-    printf("How many ops total should be executed?\n");
     scanf("%d", &total_ops);
-    printf("Percent of ops that should be searches? (between 0 and 1)\n");
     scanf("%lf", &search_percent);
-    printf("Percent of ops that should be inserts? (between 0 and 1)\n");
     scanf("%lf", &insert_percent);
     delete_percent = 1.0 - (search_percent + insert_percent);
 } /* Get_input */
