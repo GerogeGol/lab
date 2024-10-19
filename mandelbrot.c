@@ -6,8 +6,13 @@
 
 #define fpow(x) (x) * (x)
 #define square_norm(x, y) fpow(x) + fpow(y)
-#define random_double(a, b) a + rand_r(&rand_state) / ((double)RAND_MAX) * (b - a);
-#define write_to_buf_next() COMPLEX* c = &global_points_buf[index]; c->real = c_real; c->img = c_img; ++i;
+#define random_double(a, b) \
+    a + rand_r(&rand_state) / ((double)RAND_MAX) * (b - a);
+#define write_to_buf_next()                 \
+    COMPLEX* c = &global_points_buf[index]; \
+    c->real = c_real;                       \
+    c->img = c_img;                         \
+    ++i;
 
 long nthreads;
 long npoints;
@@ -61,8 +66,7 @@ void* mandelbrot(void* arg) {
         int index = my_args->start + i;
 
         if (check_main_cardiod(c_real, c_img)) {
-            write_to_buf_next()
-            continue;
+            write_to_buf_next() continue;
         }
 
         // temporary variables
@@ -102,7 +106,8 @@ pthread_t* create_threads() {
     pthread_attr_init(&attr);
 
     for (long i = 0; i < nthreads - 1; i++) {
-        ARGS* args = new_args(i * points_per_thread, (i + 1) * points_per_thread);
+        ARGS* args =
+            new_args(i * points_per_thread, (i + 1) * points_per_thread);
         pthread_create(&threads[i], &attr, mandelbrot, args);
     }
 
@@ -120,15 +125,15 @@ void join_threads(pthread_t* threads) {
 }
 
 int check_input(int argc, char* argv[]) {
-    if (argc != 3) 
-    {
+    if (argc != 3) {
         printf("Использование: %s <количество потоков> <количество попыток>\n",
                argv[0]);
         return 1;
     }
-    if (argv[1] <= 0 || argv[2] <= 0) 
-    {
-        printf("Ошибка: количество потоков и попыток должно быть положительным!\n");
+    if (argv[1] <= 0 || argv[2] <= 0) {
+        printf(
+            "Ошибка: количество потоков и попыток должно быть "
+            "положительным!\n");
         return 1;
     }
 
@@ -147,11 +152,11 @@ void write_to_csv(char* filename) {
 }
 
 int main(int argc, char* argv[]) {
-    if(check_input(argc, argv)) {
+    if (check_input(argc, argv)) {
         return 1;
     }
-
-    srand(time(NULL));
+    int seed = 42;
+    srand(seed);
 
     nthreads = atoi(argv[1]);
     npoints = atoi(argv[2]);
