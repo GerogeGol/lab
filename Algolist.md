@@ -44,10 +44,10 @@
 4. Последовательно проверяем, принадлежит ли точка множеству Мандельброта:
    - Для каждой точки выполняем до фиксированного максимального числа шагов.
      - Вычисляем:
-      $$\begin{align} 
-      \text{Re}\ z_{n+1} &= (\text{Re}\ z_n)^2 - (\text{Im}\ z)^2 + \text{Re}\ c \\ 
+      $$\begin{aligned} 
+      \text{Re}\ z_{n+1} &= (\text{Re}\ z_n)^2 - (\text{Im}\ z)^2 + \text{Re}\ c \\\\\\
       \text{Im}\ z_{n+1} &= 2 \cdot \text{Re}\ z_n \cdot \text{Im}\ z_n + \text{Im}\ c 
-      \end{align} $$
+      \end{aligned} $$
       
      - Проверяем условие выхода из множества Мандельброта:
       $$\left(\text{Re}\ z_{n+1}\right)^2 + \left(\text{Im}\ z_{n+1}\right)^2 \geq 4 \text{}$$
